@@ -18,6 +18,10 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
   if (conv !== null && conv.data.bitcoinInvestment === undefined) {
     conv.data.bitcoinInvestment = 10000;
   }
+
+  if ( conv !== null && conv.data.bitcoinPrices === undefined ) {
+    conv.data.bitcoinPrices = [];
+}
  
   function welcome(agent) {
     agent.add(`Welcome to my agent!`);
@@ -37,9 +41,12 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
   }
 
   function getBitcoinPrice(dateToRead) {
-    //Example: https://api.coindesk.com/v1/bpi/historical/close.json?start=2019-07-30&end=2019-07-30&currency=eur
-    return requestAPI('https://api.coindesk.com/v1/bpi/historical/close.json?start=' + dateToRead +
-      '&end=' + dateToRead + '&currency=eur')
+    if ( conv.data.bitcoinPrices.hasOwnProperty(dateToRead) )  {
+      return conv.data.bitcoinPrices[dateToRead];
+    } else {
+      //Example: https://api.coindesk.com/v1/bpi/historical/close.json?start=2019-07-30&end=2019-07-30&currency=eur
+      return requestAPI('https://api.coindesk.com/v1/bpi/historical/close.json?start=' + dateToRead+
+        '&end=' + dateToRead + '&currency=eur')
       .then(function (data) {
         let bitcoinPrice = JSON.parse(data);
         if (bitcoinPrice.hasOwnProperty('bpi') && bitcoinPrice['bpi'].hasOwnProperty(dateToRead)) {
@@ -49,6 +56,7 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
         console.log('No bitcoin data');
         console.log(err);
       });
+    }
   }
 
   async function calculateInvestment(investDate, sellDate) {
