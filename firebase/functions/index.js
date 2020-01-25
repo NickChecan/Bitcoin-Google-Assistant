@@ -4,6 +4,7 @@ const functions = require('firebase-functions');
 const {WebhookClient} = require('dialogflow-fulfillment');
 const {Card, Suggestion} = require('dialogflow-fulfillment');
 const requestAPI = require('request-promise');
+const {BasicCard, Button, Image, List, BrowseCarousel, BrowseCarouselItem} = require('actions-on-google');
 
 process.env.DEBUG = 'dialogflow:debug'; // enables lib debugging statements
 
@@ -139,6 +140,133 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
       ' you would have earned: ' + earned + ' euros ';
     
     conv.ask(response);
+    conv.ask(new BasicCard({
+      text: `Bitcoin price on ${dateToCalculate.toDateString()}: ${formatMoney(investment.investPrice.toFixed(2))}.  \n
+        Investment: ${formatMoney(conv.data.bitcoinInvestment)} euro.  \n  
+        Selling price yesterday: ${formatMoney(investment.sellPrice.toFixed(2))} euro.  \n   
+        Revenue: ${earned} euros.  \n`,
+      subtitle: `Investment date: ${dateToCalculate.toDateString()}`,
+      title: `Investment return: ${earned} euros`,
+      buttons: new Button({
+        title: 'Buy bitcoins now',
+        url: 'https://bitcoins.now/',
+      }),
+      display: 'CROPPED'
+    }));
+    agent.add(conv);
+
+  }
+
+  async function earnWithBitcoin() {
+    
+    let now = new Date();
+    now.setDate(now.getDate() - 1);
+    let sellDate = formatDate(now);
+
+    // Beginning of the month
+    let dateToCalculate = new Date();
+    dateToCalculate.setDate(1);
+    let startOfMonth = formatDate(dateToCalculate);
+
+    // Beginning of the year
+    dateToCalculate = new Date();
+    dateToCalculate.setDate(1);
+    dateToCalculate.setMonth(0);
+    let startOfYear = formatDate(dateToCalculate);
+
+    // One year ago
+    dateToCalculate = new Date();
+    dateToCalculate.setFullYear(now.getFullYear() - 1);
+    let aYearAgo = formatDate(dateToCalculate);
+
+    // Two years ago
+    dateToCalculate = new Date();
+    dateToCalculate.setFullYear(now.getFullYear() - 2);
+    let twoYearAgo = formatDate(dateToCalculate);
+
+    // Three years ago
+    dateToCalculate = new Date();
+    dateToCalculate.setFullYear(now.getFullYear() - 3);
+    let threeYearAgo = formatDate(dateToCalculate);
+
+
+    let investmentStartOfMonth = await calculateInvestment(startOfMonth, sellDate);
+    let earnedStartOfMonth = formatMoney(investmentStartOfMonth.earned.toFixed(0));
+    let priceStartOfMonth = formatMoney(investmentStartOfMonth.investPrice.toFixed(2));
+
+    let investmentStartOfYear = await calculateInvestment(startOfYear, sellDate);
+    let earnedStartOfYear = formatMoney(investmentStartOfYear.earned.toFixed(0));
+    let priceStartOfYear  = formatMoney(investmentStartOfYear.investPrice.toFixed(2));
+
+    let investmentAYearAgo = await calculateInvestment(aYearAgo, sellDate);
+    let earnedAYearAgo = formatMoney(investmentAYearAgo.earned.toFixed(0));
+    let priceAYearAgo = formatMoney(investmentAYearAgo.investPrice.toFixed(2));
+
+    let investmentTwoYearAgo = await calculateInvestment(twoYearAgo, sellDate);
+    let earnedTwoYearAgo = formatMoney(investmentTwoYearAgo.earned.toFixed(0));
+    let priceTwoYearAgo = formatMoney(investmentTwoYearAgo.investPrice.toFixed(2));
+
+    let investmentThreeYearAgo = await calculateInvestment(threeYearAgo, sellDate);
+    let earnedThreeYearAgo = formatMoney(investmentThreeYearAgo.earned.toFixed(0));
+    let priceThreeYearAgo = formatMoney(investmentThreeYearAgo.investPrice.toFixed(2));
+
+    conv.ask(`This is how much you would earn with bitcoin if you invested ${formatMoney(conv.data.bitcoinInvestment)}`);
+    
+    conv.ask(new BrowseCarousel({
+      items: [
+        new BrowseCarouselItem({
+          title: `Price ${priceStartOfMonth} euro`,
+          url: `https://bitcoins.now`,
+          description: `Beginning of this month`,
+          image: new Image({
+            url: `https://dummyimage.com/128x232/2b00ff/fff.png&text=${earnedStartOfMonth}`,
+            alt: `Earning from beginning of this month ${earnedStartOfMonth} euro`,
+          }),
+          footer: `Buy bitcoin`,
+        }),
+        new BrowseCarouselItem({
+          title: `Price ${priceStartOfYear} euro`,
+          url: `https://bitcoins.now`,
+          description: `Start of the year`,
+          image: new Image({
+            url: `https://dummyimage.com/128x232/2b00ff/fff.png&text=${earnedStartOfYear}`,
+            alt: `Earning from beginning of this year ${earnedStartOfYear} euro`,
+          }),
+          footer: `Buy bitcoin`,
+        }),
+        new BrowseCarouselItem({
+          title: `Price ${priceAYearAgo} euro`,
+          url: `https://bitcoins.now`,
+          description: `One year ago`,
+          image: new Image({
+            url: `https://dummyimage.com/128x232/2b00ff/fff.png&text=${earnedAYearAgo}`,
+            alt: `Earning from one year ago ${earnedAYearAgo} euro`,
+          }),
+          footer: `Buy bitcoin`,
+        }),
+        new BrowseCarouselItem({
+          title: `Price ${priceTwoYearAgo} euro`,
+          url: `https://bitcoins.now`,
+          description: `Two years ago`,
+          image: new Image({
+            url: `https://dummyimage.com/128x232/2b00ff/fff.png&text=${earnedTwoYearAgo}`,
+            alt: `Earning from two years ago ${earnedTwoYearAgo} euro`,
+          }),
+          footer: `Buy bitcoin`,
+        }),
+        new BrowseCarouselItem({
+          title: `Price ${priceThreeYearAgo} euro`,
+          url: `https://bitcoins.now`,
+          description: `Three years ago`,
+          image: new Image({
+            url: `https://dummyimage.com/128x232/2b00ff/fff.png&text=${earnedThreeYearAgo}`,
+            alt: `Earning from three years ago ${earnedThreeYearAgo} euro`,
+          }),
+          footer: `Buy bitcoin`,
+        })
+      ]
+    }));
+
     agent.add(conv);
 
   }
@@ -147,6 +275,7 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
   let intentMap = new Map();
   intentMap.set('Default Welcome Intent', welcome);
   intentMap.set('Default Fallback Intent', fallback);
+  intentMap.set('Earn with Bitcoin', earnWithBitcoin);
   intentMap.set('Earn with Bitcoin in specific period', earnWithBitcoinPeriod);
   
   agent.handleRequest(intentMap);
